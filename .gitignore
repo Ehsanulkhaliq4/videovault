@@ -1,0 +1,12 @@
+node_modules/
+dist/
+target/
+*.AppImage
+*.deb
+*-runner
+
+# VS Code
+.vscode
+
+# OS files
+.DS_Store

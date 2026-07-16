@@ -1,0 +1,59 @@
+{
+  "name": "vediovault_downloader",
+  "version": "1.0.0",
+  "description": "yt-dlp youtube video downloader using angular 19 and quarkus 3.X.X+",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "build": {
+  "appId": "com.vediovault.downloader",
+  "productName": "VideoVault Downloader",
+  "files": [
+    "src/**/*",
+    "frontend/dist/**/*",
+    "resources/**/*",
+    "icons/**/*",
+    "package.json"
+  ],
+  "asarUnpack": [
+    "resources/quarkus-backend/**"
+  ],
+  "directories": {
+    "buildResources": "icons",
+    "output": "dist"
+  },
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "icon": "icons/app-icon.png",
+    "category": "Utility"
+  },
+  "deb": {
+    "maintainer": "Ehsan ul khaliq <ehsanulkhaliq274@gmail.com>"
+  }
+},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ehsanulkhaliq4/videovault.git"
+  },
+  "keywords": [
+    "downloader",
+    "ytdlp",
+    "fast",
+    "downloader"
+  ],
+  "author": {
+    "name": "Ehsan ul khaliq",
+    "email": "ehsanulkhaliq4@example.com"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Ehsanulkhaliq4/yt-downloader-ui/issues"
+  },
+  "homepage": "https://github.com/Ehsanulkhaliq4/yt-downloader-ui#readme",
+  "devDependencies": {
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3"
+  }
+}
