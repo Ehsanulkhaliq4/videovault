@@ -12,6 +12,7 @@ let windowCreated = false;
 function loadAppIcon() {
   const svgPath = path.join(__dirname, '../icons/app-icon.svg');
   const pngPath = path.join(__dirname, '../icons/app-icon.png');
+  const icoPath = path.join(__dirname, '../icons/app-icon.ico');
 
   if (fs.existsSync(pngPath)) {
     return pngPath;
@@ -20,6 +21,11 @@ function loadAppIcon() {
   if (fs.existsSync(svgPath)) {
     return svgPath;
   }
+
+  if (process.platform === 'darwin' && fs.existsSync(icnsPath)) {
+    return icnsPath;
+  }
+
   return undefined;
 }
 
@@ -80,6 +86,22 @@ function createWindow() {
       }
     }
 
+    try {
+      const parsed = new URL(apiUrl);
+      if (parsed.origin === 'http://localhost:8080' && parsed.pathname === '/api/video/info') {
+        const rawVideoUrl = parsed.searchParams.get('url');
+        if (rawVideoUrl) {
+          const sanitized = new URL('http://localhost:8080/api/video/info');
+          sanitized.searchParams.set('url', rawVideoUrl);
+          if (sanitized.toString() !== apiUrl) {
+            return callback({ redirectURL: sanitized.toString() });
+          }
+        }
+      }
+    } catch (error) {
+      // Not a valid URL, ignore and continue.
+    }
+
     return callback({ cancel: false });
   });
 
@@ -106,7 +128,6 @@ function loadFrontend() {
   if (fs.existsSync(frontendPath)) {
     mainWindow.loadFile(frontendPath);
   } else {
-    console.log('Loading development frontend at http://localhost:4200');
     mainWindow.loadURL('http://localhost:4200');
   }
 }
@@ -122,18 +143,85 @@ function getBackendBinaryPath() {
 }
 
 function startBackend() {
-  const backendPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'quarkus-backend')
-    : path.join(__dirname, '../resources/quarkus-backend');
+  let backendPath;
+  if (app.isPackaged) {
+    backendPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'quarkus-backend');
+  } else {
+    backendPath = path.join(__dirname, '../resources/quarkus-backend');
+  }
   const binaryPath = getBackendBinaryPath();
 
+  const platform = process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'mac' : 'linux';
+  const ytDlpExt = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+
+  const resourcesBasePath = app.isPackaged
+    ? path.join(process.resourcesPath, "app.asar.unpacked", "resources")
+    : path.join(__dirname, "../resources");
+
+  const possibleYtDlpPaths = [
+    path.join(resourcesBasePath, "bin", platform, ytDlpExt),
+    path.join(backendPath, "bin", platform, ytDlpExt),
+    path.join(resourcesBasePath, ytDlpExt),
+    path.join(backendPath, ytDlpExt),
+    ytDlpExt,
+  ];
+
+  let ytDlpPath = null;
+  for (const testPath of possibleYtDlpPaths) {
+    if (fs.existsSync(testPath)) {
+      ytDlpPath = testPath;
+      
+      if (process.platform !== 'win32') {
+        try {
+          fs.chmodSync(ytDlpPath, 0o755);
+        } catch (err) {
+          console.error(`Failed to set executable permissions: ${err}`);
+        }
+      }
+      break;
+    }
+  }
+
+  if (!ytDlpPath) {
+    console.error('❌ yt-dlp not found in any location!');
+    console.error(`Expected path: ${path.join(resourcesBasePath, 'bin', platform, ytDlpExt)}`);
+    console.error('Please ensure yt-dlp exists in the correct location.');
+    
+    try {
+      const binPath = path.join(resourcesBasePath, 'bin');
+      if (fs.existsSync(binPath)) {
+        console.error(`Contents of ${binPath}:`, fs.readdirSync(binPath));
+        const platformPath = path.join(binPath, platform);
+        if (fs.existsSync(platformPath)) {
+          console.error(`Contents of ${platformPath}:`, fs.readdirSync(platformPath));
+        }
+      } else {
+        console.error(`Bin path does not exist: ${binPath}`);
+        console.error(`Resources path contents:`, fs.readdirSync(resourcesBasePath));
+      }
+    } catch (err) {
+      console.error('Could not list directory contents:', err);
+    }
+  }
+
   if (!fs.existsSync(binaryPath)) {
-    console.error(`ERROR: Binary file not found at ${binaryPath}. Make sure it isn't an empty directory.`);
+    console.error(`ERROR: Binary file not found at ${binaryPath}.`);
     return;
+  }
+
+  const env = {
+    ...process.env,
+    YTDLP_PATH: ytDlpPath || 'yt-dlp', // Fallback to system path
+  };
+
+  if (ytDlpPath) {
+    const binDir = path.dirname(ytDlpPath);
+    env.PATH = `${binDir}:${process.env.PATH}`;
   }
 
   backendProcess = spawn(binaryPath, {
     cwd: backendPath,
+    env: env,
     stdio: ['ignore', 'pipe', 'pipe']
   });
 

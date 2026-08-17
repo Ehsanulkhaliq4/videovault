@@ -1,6 +1,6 @@
 {
   "name": "vediovault_downloader",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "yt-dlp youtube video downloader using angular 19 and quarkus 3.X.X+",
   "main": "src/main.js",
   "scripts": {
@@ -9,7 +9,7 @@
   },
   "build": {
   "appId": "com.vediovault.downloader",
-  "productName": "VideoVault Downloader",
+  "productName": "VideoVault",
   "files": [
     "src/**/*",
     "frontend/dist/**/*",
@@ -18,7 +18,8 @@
     "package.json"
   ],
   "asarUnpack": [
-    "resources/quarkus-backend/**"
+    "resources/quarkus-backend/**",
+    "**/resources/bin/**"
   ],
   "directories": {
     "buildResources": "icons",
