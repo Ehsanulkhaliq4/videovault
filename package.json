@@ -3,6 +3,7 @@
   "version": "1.1.0",
   "description": "yt-dlp youtube video downloader using angular 19 and quarkus 3.X.X+",
   "main": "src/main.js",
+  "desktopName": "com.vediovault.downloader.desktop",
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder"
@@ -28,7 +29,8 @@
   "linux": {
     "target": ["AppImage", "deb"],
     "icon": "icons/app-icon.png",
-    "category": "Utility"
+    "category": "Utility",
+    "syncDesktopName": true
   },
   "deb": {
     "maintainer": "Ehsan ul khaliq <ehsanulkhaliq274@gmail.com>"

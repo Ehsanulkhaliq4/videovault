@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, nativeImage } = require('electron')
+const { app, BrowserWindow, ipcMain, nativeImage, nativeTheme } = require('electron')
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -31,6 +31,18 @@ function loadAppIcon() {
 
 app.disableHardwareAcceleration();
 
+// Keep the native window backdrop in sync with the OS theme so the splash
+// page never flashes a light background while dark mode is active (or vice versa).
+function getWindowBackgroundColor() {
+  return nativeTheme.shouldUseDarkColors ? '#0a0c14' : '#f4f6fb';
+}
+
+nativeTheme.on('updated', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setBackgroundColor(getWindowBackgroundColor());
+  }
+});
+
 function createWindow() {
   if (windowCreated) return;
   windowCreated = true;
@@ -46,7 +58,7 @@ function createWindow() {
     icon,
     titleBarStyle: 'hiddenInset',
     autoHideMenuBar: true,
-    backgroundColor: '#f8fafc'
+    backgroundColor: getWindowBackgroundColor()
   });
   const splashPath = path.join(__dirname, 'splash.html');
   if (fs.existsSync(splashPath)) {
@@ -168,17 +180,22 @@ function startBackend() {
 
   let ytDlpPath = null;
   for (const testPath of possibleYtDlpPaths) {
-    if (fs.existsSync(testPath)) {
+    if (!fs.existsSync(testPath)) continue;
+    try {
+      fs.accessSync(testPath, fs.constants.X_OK);
       ytDlpPath = testPath;
-      
-      if (process.platform !== 'win32') {
-        try {
-          fs.chmodSync(ytDlpPath, 0o755);
-        } catch (err) {
-          console.error(`Failed to set executable permissions: ${err}`);
-        }
-      }
       break;
+    } catch (err) {
+      // Some installers drop the executable bit when unpacking; fix it and
+      // try again. This is required for the unpacked AppImage/deb resources.
+      try {
+        fs.chmodSync(testPath, 0o755);
+        fs.accessSync(testPath, fs.constants.X_OK);
+        ytDlpPath = testPath;
+        break;
+      } catch (chmodErr) {
+        console.error(`Cannot make yt-dlp executable at ${testPath}: ${chmodErr}`);
+      }
     }
   }
 
@@ -209,14 +226,21 @@ function startBackend() {
     return;
   }
 
+  // The backend reads YTDLP_PATH at runtime. YTDLP_BINARY is also exported
+  // so it keeps working if Quarkus config mapping is used instead.
+  const resolvedYtDlp = ytDlpPath || 'yt-dlp';
   const env = {
     ...process.env,
-    YTDLP_PATH: ytDlpPath || 'yt-dlp', // Fallback to system path
+    YTDLP_PATH: resolvedYtDlp,
+    YTDLP_BINARY: resolvedYtDlp,
   };
 
   if (ytDlpPath) {
     const binDir = path.dirname(ytDlpPath);
-    env.PATH = `${binDir}:${process.env.PATH}`;
+    env.PATH = `${binDir}${path.delimiter}${process.env.PATH || ''}`;
+    console.log(`Using bundled yt-dlp: ${ytDlpPath}`);
+  } else {
+    console.warn('Bundled yt-dlp not found; falling back to yt-dlp on PATH');
   }
 
   backendProcess = spawn(binaryPath, {

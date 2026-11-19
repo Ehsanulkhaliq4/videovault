@@ -101,6 +101,21 @@ For example:
 
 - If the app stays on the loading screen, make sure the backend binary exists and is executable.
 - If packaging fails, verify your Node version and Electron Builder compatibility.
+- The UI now shows the backend's real error message instead of only `400 Bad Request`.
+  Read that message first — it usually identifies the exact problem.
+- `Cannot start yt-dlp ...`: the bundled `resources/bin/<platform>/yt-dlp` is
+  missing or was not unpacked with executable permissions. Reinstall/rebuild the
+  app. The Linux binary is a self-contained executable, so Python is **not**
+  required on the target machine.
+- `yt-dlp failed (exit 1): ... Sign in to confirm you're not a bot` (or HTTP 403):
+  YouTube is rate-limiting that network. Try another network, or set the
+  environment variable `YTDLP_EXTRA_ARGS` (for example
+  `--extractor-args youtube:player_client=web`) before launching the app.
+- After changing Java code in `yt-downloader-backend`, rebuild the native runner
+  (`./mvnw package -Dnative`) and copy it to
+  `resources/quarkus-backend/yt-downloader-backend-runner` before packaging.
+  The Electron launcher exports `YTDLP_PATH`/`YTDLP_BINARY` with the absolute
+  path of the bundled yt-dlp; the backend reads these at runtime.
 
 ## License
 
